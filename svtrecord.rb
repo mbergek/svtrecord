@@ -81,7 +81,10 @@ js = <<JS
     page.onError = function(msg, trace) {};
     page.onLoadFinished = function(status) {
         page.evaluate(
-            function() { $(".svtplayerCBContainer").click(); }
+            function() {
+							$(".svtplayerCBContainer").click();
+							$(".svtlib-svtplayer_overlay__button").click();
+						}
         );
         window.setTimeout(function() {
             var url2 = page.evaluate(function() { return document.querySelector('video.svtplayerVideoNoIE').getAttribute('src'); });
