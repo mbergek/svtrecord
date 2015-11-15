@@ -87,7 +87,7 @@ js = <<JS
 						}
         );
         window.setTimeout(function() {
-            var url2 = page.evaluate(function() { return document.querySelector('video.svtplayerVideoNoIE').getAttribute('src'); });
+            var url2 = page.evaluate(function() { return document.querySelector('video.svp_video').getAttribute('src'); });
             var length = page.evaluate(function() { return document.querySelector('a.svtplayer').getAttribute('data-length') })
             var title = page.evaluate(function() { return document.querySelector('a.svtplayer').getAttribute('data-title') })
             var alt = page.evaluate(function() { return document.querySelector('a.svtplayer img').getAttribute('alt') })
