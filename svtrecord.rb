@@ -82,9 +82,9 @@ js = <<JS
     page.onLoadFinished = function(status) {
         page.evaluate(
             function() {
-							$(".svtplayerCBContainer").click();
-							$(".svtlib-svtplayer_overlay__button").click();
-						}
+              $(".svtplayerCBContainer").click();
+              $(".svtlib-svtplayer_overlay__button").click();
+            }
         );
         window.setTimeout(function() {
             var url2 = page.evaluate(function() { return document.querySelector('video.svp_video').getAttribute('src'); });
@@ -109,12 +109,33 @@ file.close
 info = Hash[Phantomjs.run(file.path, options[:url]).lines.map { |l| (k,v) = l.chomp.split(':', 2); [k.to_sym, v] }]
 file.unlink
 
-# Get information about the streams
-m3u8 = Net::HTTP.get(URI.parse(info[:url]))
+# Read the M3U content, following redirects as required
+base_url = info[:url]
+response = Net::HTTP.get_response(URI(base_url))
+while response.kind_of?(Net::HTTPRedirection)
+    base_url = response['location']
+    warn "Redirected to #{base_url}"
+    response = Net::HTTP.get_response(URI(base_url))
+end
+m3u8 = response.body
+
+# Remove header lines
+m3u8.sub! /#EXTM3U\n/, ''
+m3u8.sub! /#EXT-X-VERSION:\d\n/, ''
+
 streams = Array.new
-m3u8.split(/\n/)[1..-1].each_slice(2) do |s, u|
-    parts = s.scan(/.*BANDWIDTH=(\d*),RESOLUTION=([0-9x]*).*/)[0]
-    streams << { :url => u, :bitrate => parts[0].to_i, :resolution => parts[1] }
+m3u8.split(/\n/).each_slice(2) do |s, u|
+    if s =~ /.*BANDWIDTH=(\d*),RESOLUTION=([0-9x]*).*/
+        (bandwidth, resolution) = s.scan(/.*BANDWIDTH=(\d*),RESOLUTION=([0-9x]*).*/)[0]
+    else
+        bandwidth = s.scan(/.*BANDWIDTH=(\d*).*/)[0][0]
+        resolution = 0
+    end
+
+    # Get the absolute URL
+    url = URI::join(base_url, u).to_s
+
+    streams << { :url => url, :bitrate => bandwidth.to_i, :resolution => resolution }
 end
 streams.sort_by! { |s| s[:bitrate] }
 
