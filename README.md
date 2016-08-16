@@ -21,6 +21,8 @@ svtrecord.rb [-b bitrate] [-o filename] [-u url]
 
 This program takes a URL to a show on SVTPlay.se and extracts the stream addresses so that the show can be saved locally. The program will list all available streams, along with the video size and an approximate file size.
 
+The bitrate is specified in bits per second. The suffixes 'k' or 'M' can be used as substitution for 1 000 or 1 000 000 respectively.
+
 If a bitrate is provided the script will automatically download the stream with the lowest bitrate that is higher than the specified bitrate. If no output file name is provided the program will use a filename based on the metadata of the stream.
 
 ## Legal
