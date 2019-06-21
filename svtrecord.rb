@@ -171,7 +171,7 @@ m3u8 = response.body
 # Remove header lines
 m3u8.sub! /#EXTM3U\n/, ''
 m3u8.sub! /#EXT-X-VERSION:\d\n/, ''
-m3u8.sub! /#EXT-X-MEDIA:.*\n/, ''
+m3u8.gsub! /#EXT-X-MEDIA:.*\n/, ''
 m3u8.gsub! /#EXT-X-I-FRAME-STREAM-INF:.*\n/, ''
 
 streams = Array.new
