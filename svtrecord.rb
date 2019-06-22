@@ -158,6 +158,8 @@ file.close
 info = Hash[Phantomjs.run(file.path, options[:url]).lines.map { |l| (k,v) = l.chomp.split(':', 2); [k.to_sym, v] }]
 file.unlink
 
+puts "Meta  : #{info}"
+
 # Read the M3U content, following redirects as required
 base_url = info[:url]
 response = Net::HTTP.get_response(URI(base_url))
@@ -168,27 +170,33 @@ while response.kind_of?(Net::HTTPRedirection)
 end
 m3u8 = response.body
 
-# Remove header lines
-m3u8.sub! /#EXTM3U\n/, ''
-m3u8.sub! /#EXT-X-VERSION:\d\n/, ''
-m3u8.gsub! /#EXT-X-MEDIA:.*\n/, ''
-m3u8.gsub! /#EXT-X-I-FRAME-STREAM-INF:.*\n/, ''
-
+media = Array.new
 streams = Array.new
-m3u8.split(/\n/).each_slice(2) do |s, u|
-	if s =~ /.*BANDWIDTH=(\d*),RESOLUTION=([0-9x]*).*/
-		(bandwidth, resolution) = s.scan(/.*BANDWIDTH=(\d*),RESOLUTION=([0-9x]*).*/)[0]
+
+m3u8.split(/\n#/).each do |v|
+	case v.split(/:/).first
+	when "EXT-X-MEDIA"
+		#puts "Media: #{v}"
+		h = Hash[v.split(/:/, 2).last.split(/,(?=(?:[^"]|"[^"]*")*$)/).map { |l| 
+			(k,v) = l.split('=', 2); [k.downcase.tr('-', '_').to_sym, v.tr('"', '')] }]
+		h[:absolute_url] = URI::join(base_url, h[:uri]).to_s
+		puts "Media : #{h}"
+		media << h
+	when "EXT-X-STREAM-INF"
+		#puts "Stream: #{v}"
+		lines = v.split(/\n/)
+		h = Hash[lines.first.split(/:/, 2).last.split(/,(?=(?:[^"]|"[^"]*")*$)/).map { |l| 
+			(k,v) = l.split('=', 2); [k.downcase.tr('-', '_').to_sym, v.tr('"', '')] }]
+		h[:uri] = lines.last
+		h[:absolute_url] = URI::join(base_url, h[:uri]).to_s
+		puts "Stream: #{h}"
+		streams << h
 	else
-		bandwidth = s.scan(/.*BANDWIDTH=(\d*).*/)[0][0]
-		resolution = 0
+		#puts "Ignored: #{v}"
 	end
-
-	# Get the absolute URL
-	url = URI::join(base_url, u).to_s
-
-	streams << { :url => url, :bitrate => bandwidth.to_i, :resolution => resolution }
 end
-streams.sort_by! { |s| s[:bitrate] }
+
+streams.sort_by! { |s| s[:average_bandwidth].to_i }
 
 # Display information and the command to save the stream
 puts
@@ -201,18 +209,24 @@ puts "Bitrates:"
 puts "---------"
 
 filename = options[:filename] || info[:alt].downcase.tr('åäöàèé?!', 'aaoaee__').gsub(/[- ]/, '_').gsub(/_+/, '_')
-
 autostream = nil
+
+audio = media.find { |m| m[:type] == "AUDIO" && m[:autoselect] == "YES" }
+subs = media.find { |m| m[:type] == "SUBTITLES" && m[:autoselect] == "YES" }
+
 streams.each do |s|
-	if autostream.nil? && options[:bitrate] && s[:bitrate] > options[:bitrate]
-		autostream = [ s[:url], s[:bitrate] ]
-	end
-	printf "%-12s %-12s %s MB\n", s[:bitrate].to_bitrate , s[:resolution], s[:bitrate].to_i * info[:length].to_i / 8 / 1000000
-	puts "ffmpeg -i '#{s[:url]}' -c copy -bsf:a aac_adtstoasc #{filename}_#{s[:bitrate].to_i.to_bitrate}.mp4"
+	printf "%-12s %-12s %s MB\n", s[:bandwidth].to_i.to_bitrate , s[:resolution], s[:bandwidth].to_i * info[:length].to_i / 8 / 1000000
+	cmd = "ffmpeg -loglevel quiet -stats -i '#{s[:absolute_url]}' #{ "-i '" + audio[:absolute_url] + "'" if audio } #{ "-i '" + subs[:absolute_url] + "'" if subs } -c copy -bsf:a aac_adtstoasc #{filename}_#{s[:bandwidth].to_i.to_bitrate}.#{ subs ? "mkv" : "mp4" }"
+	puts cmd
 	puts
+	if autostream.nil? && options[:bitrate] && s[:bandwidth].to_i > options[:bitrate]
+		autostream = cmd
+	end
 end
 
 if autostream
-	puts "Saving stream to #{filename}.mp4"
-	exec("ffmpeg -i '#{autostream[0]}' -c copy -bsf:a aac_adtstoasc #{filename}_#{autostream[1].to_i.to_bitrate}.mp4")
+	puts
+	puts "Saving stream to #{filename}"
+	puts
+	exec(autostream)
 end
