@@ -23,7 +23,7 @@ This program takes a URL to a show on SVTPlay.se and extracts the stream address
 
 The bitrate is specified in bits per second. The suffixes 'k' or 'M' can be used as substitution for 1 000 or 1 000 000 respectively.
 
-If a bitrate is provided the script will automatically download the stream with the lowest bitrate that is higher than the specified bitrate. If no output file name is provided the program will use a filename based on the metadata of the stream. If the source includes a subtitle stream it will be included in the output which will be saved with the extension .mkv. Otherwise the output will have a .mp4 extension.
+If a bitrate is provided the script will automatically download the stream with the lowest bitrate that is higher than the specified bitrate. If no output file name is provided the program will use a filename based on the metadata of the stream. If the source includes a subtitle stream it will be included in the output which will be saved with the extension .mkv. Otherwise the output will have an .mp4 extension.
 
 ## Legal
 
